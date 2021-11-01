@@ -1,0 +1,20 @@
+Xbee:
+  port: /dev/ttyUSB1
+  node_id: "Node 1"
+  timeout_receiver: 0.2
+  timeout_sender: 2.0
+
+CADMM:
+  init_y: [0.1,0.1] # if None then random initialization
+  init_y_temp: 0.1
+  init_y_n_temp: 8
+  cost: "Affine"
+  c: 0.5
+
+Network:
+  A: None  # if None then get from xbee neighbors
+
+Meta:
+  loop_rate: 0.1
+  save_file: "node1.p"
+  save_file_cost: "node_cost1.p"
