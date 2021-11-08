@@ -1,13 +1,13 @@
 Xbee:
-  port: /dev/ttyUSB0
-  node_id: "Node 0"
+  port: /dev/ttyUSB2
+  node_id: "Node 2"
   timeout_receiver: 0.2
   timeout_sender: 2.0
   state_size: 128
 
 CADMM:
-  init_y: [0,0] # if None then random initialization
-  init_y_temp: 0.02
+  init_y: [0.4,0.4] # if None then random initialization
+  init_y_temp: 0.4
   init_y_n_temp: 8
   cost: "Affine"
   c: 0.5
@@ -17,5 +17,5 @@ Network:
 
 Meta:
   loop_rate: 0.1
-  save_file: "node0.p"
-  save_file_cost: "node_cost0.p"
+  save_file: "node2.p"
+  save_file_cost: "node_cost2.p"

@@ -37,7 +37,7 @@ device.set_node_id('Node ' + node)  # sets the node id
 device.set_pan_id(bytearray(b'\xca\xfe'))
 
 # sets it in API mode
-device.set_parameter('AP',bytearray(b'\x02'))
+device.set_parameter('AP',bytearray(b'\x01'))
 
 
 ##################

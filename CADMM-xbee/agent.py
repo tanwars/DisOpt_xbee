@@ -1,54 +1,44 @@
 import numpy as np
 from cost import cost
-from utils import get_random_A_b
+from utils import get_random_A_b, cb_network_modified, convert_to_packets, \
+    recombine_packets, get_num_packets, not_all_ones
 
 from digi.xbee.devices import XBeeDevice, DigiMeshDevice, DiscoveryOptions, \
     NetworkDiscoveryStatus, NeighborDiscoveryMode, NetworkEventReason, \
     NetworkEventType
 import time
 
-def cb_network_modified(event_type, reason, node):
-    print("  >>>> Network event:")
-    print("         Type: %s (%d)" % (event_type.description, event_type.code))
-    print("         Reason: %s (%d)" % (reason.description, reason.code))
-
-    if not node:
-        return
-    print("         Node:")
-    print("            %s" % node)
-
 class agent:
 
     def __init__(self, params):
         
+        self.state_size = params['Xbee']['state_size']
+        self.num_packets = get_num_packets(self.state_size)
+
         self.device = DigiMeshDevice(params['Xbee']['port'], 9600)
         
         # xbee
         self.setup_xbee(params)
-        self.setup_network(params)
 
         # cadmm
         # self.y = np.array(params['CADMM']['init_y'], dtype=float)
-        self.init_y = [params['CADMM']['init_y_temp']] * params['CADMM']['init_y_n_temp']
+        self.init_y = [params['CADMM']['init_y_temp']] * params['Xbee']['state_size']
         self.y = np.array(self.init_y, dtype=float)
         self.p = np.zeros_like(self.y)
         self.c = params['CADMM']['c']
 
         print(self.y)
 
-        # TODO intialize neibhbors
-        self.neighbors = [np.array(self.init_y)] * len(self.nodes)
-        self.degree = len(self.neighbors)
-
         # cost
         A,b = get_random_A_b(self.y.size)
         cost_param = {'A': A, 'b' : b}
         self.cost = cost('Affine', cost_param)
-        
+
         # recording data
         self.all_y = [self.y] # store y
         self.all_p = [self.p] # store p
         self.step_num = 0
+        self.avg_time = 0.0
     
     def __del__(self):
         if self.device is not None and self.device.is_open():
@@ -60,15 +50,19 @@ class agent:
         self.device.set_node_id(params['Xbee']['node_id'])  # sets node ID
         self.device.set_pan_id(bytearray(b'\xca\xfe')) # sets network ID
         # checks that it is API mode
-        assert self.device.get_parameter('AP')==bytearray(b'\x02'), 'mode is incorrect' 
+        assert self.device.get_parameter('AP')==bytearray(b'\x01'), 'mode is incorrect' 
         self.device.flush_queues()
         self.device.set_sync_ops_timeout(params['Xbee']['timeout_sender'])
         self.PARAM_TIMEOUT = params['Xbee']['timeout_receiver']
 
+        self.setup_network(params)
+        self.device.add_data_received_callback(self.data_receive_callback)
+
     def setup_network(self, params):
         xnet = self.device.get_network()
-        xnet.set_discovery_options({DiscoveryOptions.DISCOVER_MYSELF,
-                                    DiscoveryOptions.APPEND_DD})
+        # xnet.set_discovery_options({DiscoveryOptions.DISCOVER_MYSELF,
+        #                             DiscoveryOptions.APPEND_DD})
+        xnet.set_discovery_options({DiscoveryOptions.APPEND_DD})
         xnet.set_discovery_timeout(3.2)
         xnet.add_network_modified_callback(cb_network_modified)
         xnet.start_discovery_process()
@@ -76,11 +70,38 @@ class agent:
             time.sleep(0.5)
         self.nodes = xnet.get_devices()
 
+        self.neighbor_packet_arr = {}
+        self.neighbors = {}
+        for n in self.nodes:
+            self.neighbor_packet_arr[n.get_node_id()] = []
+            # self.neighbors[n.get_node_id()] = np.array(params['CADMM']['init_y'], dtype=float)
+        
+        self.degree = len(self.nodes)
+        self.flag_received = {}
+
     def send_state(self):
-        message = self.y.tobytes()  # TODO: may need to change this
+        packets = convert_to_packets(self.y, 72)
         for node in self.nodes:
-            self.device.send_data(node, message)
-            # TODO: should check message type
+            for i in range(len(packets)):
+                self.device.send_data(node, packets[i])
+
+    def data_receive_callback(self, xbee_message):
+        # append message to nodeid's list of packets
+        # ts = time.time()
+        remote_id = xbee_message.remote_device.get_node_id()
+        # print('got message from:', remote_id)
+        # print(self.flag_received)
+        self.neighbor_packet_arr[remote_id].append(xbee_message.data)
+        # check if node ID messge list is len full 
+        # if it is full: evaluate it, print reception and empty it
+        if (len(self.neighbor_packet_arr[remote_id]) == self.num_packets):
+            self.neighbors[remote_id] = recombine_packets(self.neighbor_packet_arr[remote_id])
+            self.neighbor_packet_arr[remote_id] = []
+            self.flag_received[remote_id] = 1
+            
+        
+        # te = time.time()
+        # print('time to entire reception:', te-ts)
 
     def receive_state(self):
         for idx, node in enumerate(self.nodes):
@@ -100,7 +121,7 @@ class agent:
         A = self.cost.A
         b = self.cost.b
 
-        yjsum = np.sum(np.array([n for n in self.neighbors]), axis = 0)
+        yjsum = np.sum(np.array([self.neighbors[n] for n in self.neighbors]), axis = 0)
         Jinv = np.linalg.inv(2 * A + 2 * self.c * self.degree * 
                                                         np.eye(self.y.size))
 
@@ -115,18 +136,28 @@ class agent:
 
         ts = time.time()
         self.send_state()
-        successful = self.receive_state()  
+        # successful = self.receive_state()  
         te = time.time()
+        
+        # TODO: need some sort of synchronization here
 
-        if not successful:
+        # time.sleep(1)
+        # if not successful:
+        if not_all_ones(self.flag_received, self.degree):
             # TODO: decide on behavior when no data received when no data received
             print('Did not step')
             return
         else:
+            for n in self.flag_received:
+                self.flag_received[n] = 0
             print('Comm. time is:', te-ts)
+
+            self.avg_time = (self.avg_time * self.step_num + te-ts)/(self.step_num + 1)
+            print('Avg time is:', self.avg_time)
             print('Stepping in', self.device.get_node_id(), 'step', self.step_num)
         
-        yjsum = np.sum(np.array([n for n in self.neighbors]), axis = 0)
+        # print([self.neighbors[n] for n in self.neighbors])
+        yjsum = np.sum(np.array([self.neighbors[n] for n in self.neighbors]), axis = 0)
 
         self.p += self.c * (self.degree * self.y - yjsum)
 

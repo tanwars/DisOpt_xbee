@@ -3,6 +3,7 @@ Xbee:
   node_id: "Node 1"
   timeout_receiver: 0.2
   timeout_sender: 2.0
+  state_size: 128
 
 CADMM:
   init_y: [0.1,0.1] # if None then random initialization
