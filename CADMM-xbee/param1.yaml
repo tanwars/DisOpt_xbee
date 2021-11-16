@@ -9,7 +9,7 @@ CADMM:
   init_y: [0.1,0.1] # if None then random initialization
   init_y_temp: 0.0
   cost: "Affine"
-  c: 0.5
+  c: 10
 
 Network:
   A: None  # if None then get from xbee neighbors
