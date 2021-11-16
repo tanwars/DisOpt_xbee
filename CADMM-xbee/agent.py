@@ -1,7 +1,7 @@
 import numpy as np
 from cost import cost
 from utils import get_random_A_b, cb_network_modified, convert_to_packets, \
-    recombine_packets, get_num_packets, not_all_ones
+    recombine_packets, get_num_packets, not_all_ones, get_A_b_from_file
 
 from digi.xbee.devices import XBeeDevice, DigiMeshDevice, DiscoveryOptions, \
     NetworkDiscoveryStatus, NeighborDiscoveryMode, NetworkEventReason, \
@@ -30,7 +30,8 @@ class agent:
         print(self.y)
 
         # cost
-        A,b = get_random_A_b(self.y.size)
+        # A,b = get_random_A_b(self.y.size)
+        A,b = get_A_b_from_file((params['Xbee']['node_id'])[-1])
         cost_param = {'A': A, 'b' : b}
         self.cost = cost('Affine', cost_param)
 

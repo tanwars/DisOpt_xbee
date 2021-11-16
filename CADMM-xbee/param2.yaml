@@ -3,12 +3,11 @@ Xbee:
   node_id: "Node 2"
   timeout_receiver: 0.2
   timeout_sender: 2.0
-  state_size: 128
+  state_size: 32
 
 CADMM:
   init_y: [0.4,0.4] # if None then random initialization
-  init_y_temp: 0.4
-  init_y_n_temp: 8
+  init_y_temp: 0.0
   cost: "Affine"
   c: 0.5
 

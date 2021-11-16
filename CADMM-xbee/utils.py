@@ -1,5 +1,6 @@
 import numpy as np
 import math
+import scipy.io as sio
 
 def get_random_A_b(n):
     a_ns = np.random.rand(n,n)
@@ -16,6 +17,19 @@ def get_random_adjacency_mat(N):
     for i in range(N):
         A[i,i] = 0
     return A
+
+def get_A_b_from_file(node_num):
+    mat = sio.loadmat("data/robot0%s_data.mat" % node_num) 
+    GtQG = mat['GtQG']
+    GtQz = mat['GtQz']
+    # ztQz = mat['ztQz']
+    # pinvH = mat['pinvH']
+    # G = mat['G']
+    # z = mat['z']
+    A = GtQG
+    b = 2 * GtQz
+    b = np.reshape(b, (b.shape[0],))
+    return A,b
 
 def cb_network_modified(event_type, reason, node):
     print("  >>>> Network event:")
