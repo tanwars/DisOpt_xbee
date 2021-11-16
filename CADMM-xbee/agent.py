@@ -35,6 +35,9 @@ class agent:
         cost_param = {'A': A, 'b' : b}
         self.cost = cost('Affine', cost_param)
 
+        self.Jinv = np.linalg.inv(2 * A + 2 * self.c * self.degree * 
+                                                        np.eye(self.y.size))
+
         # recording data
         self.all_y = [self.y] # store y
         self.all_p = [self.p] # store p
@@ -116,23 +119,6 @@ class agent:
     #             self.neighbors[idx] = np.frombuffer(xbee_message.data)
     #             return True
 
-    def minimizer(self, p_k):
-        # depends on cost
-
-        A = self.cost.A
-        b = self.cost.b
-
-        yjsum = np.sum(np.array([self.neighbors[n] for n in self.neighbors]), axis = 0)
-        Jinv = np.linalg.inv(2 * A + 2 * self.c * self.degree * 
-                                                        np.eye(self.y.size))
-
-
-        rhs = self.c * (self.degree * self.y + yjsum) - self.p - b
-        
-        y_k = Jinv @ rhs
-
-        return y_k
-
     def step(self):
 
         ts = time.time()
@@ -149,6 +135,7 @@ class agent:
             print('Did not step')
             return
         else:
+            print(self.flag_received)
             for n in self.flag_received:
                 self.flag_received[n] = 0
             print('Comm. time is:', te-ts)
@@ -162,7 +149,8 @@ class agent:
 
         self.p += self.c * (self.degree * self.y - yjsum)
 
-        self.y = self.minimizer(self.p)
+        rhs = self.c * (self.degree * self.y + yjsum) - self.p - self.cost.b
+        self.y = self.Jinv @ rhs
 
         # reset the neighbor packets to nothing after done updating
         for n in self.nodes:
