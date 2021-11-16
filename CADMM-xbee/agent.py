@@ -22,7 +22,7 @@ class agent:
 
         # cadmm
         # self.y = np.array(params['CADMM']['init_y'], dtype=float)
-        self.init_y = [params['CADMM']['init_y_temp']] * params['Xbee']['state_size']
+        self.init_y = [params['CADMM']['init_y_temp']] * self.state_size
         self.y = np.array(self.init_y, dtype=float)
         self.p = np.zeros_like(self.y)
         self.c = params['CADMM']['c']
@@ -89,7 +89,7 @@ class agent:
         # append message to nodeid's list of packets
         # ts = time.time()
         remote_id = xbee_message.remote_device.get_node_id()
-        # print('got message from:', remote_id)
+        print('got message from:', remote_id)
         # print(self.flag_received)
         self.neighbor_packet_arr[remote_id].append(xbee_message.data)
         # check if node ID messge list is len full 
@@ -103,17 +103,17 @@ class agent:
         # te = time.time()
         # print('time to entire reception:', te-ts)
 
-    def receive_state(self):
-        for idx, node in enumerate(self.nodes):
-            try:
-                xbee_message = self.device.read_data_from(node, self.PARAM_TIMEOUT)
-            except:
-                print('Timeout because of no reception from', node.get_node_id())
-                return False
-            else:
-                # TODO: decide on structure of neighbor object
-                self.neighbors[idx] = np.frombuffer(xbee_message.data)
-                return True
+    # def receive_state(self):
+    #     for idx, node in enumerate(self.nodes):
+    #         try:
+    #             xbee_message = self.device.read_data_from(node, self.PARAM_TIMEOUT)
+    #         except:
+    #             print('Timeout because of no reception from', node.get_node_id())
+    #             return False
+    #         else:
+    #             # TODO: decide on structure of neighbor object
+    #             self.neighbors[idx] = np.frombuffer(xbee_message.data)
+    #             return True
 
     def minimizer(self, p_k):
         # depends on cost
@@ -162,6 +162,11 @@ class agent:
         self.p += self.c * (self.degree * self.y - yjsum)
 
         self.y = self.minimizer(self.p)
+
+        # reset the neighbor packets to nothing after done updating
+        for n in self.nodes:
+            self.neighbor_packet_arr[n] = []
+            self.neighbors = {}
 
         # # recorder
         self.all_p.append(self.p)
