@@ -36,7 +36,7 @@ class agent:
 
         yjsum = np.sum(np.array([n.y for n in self.neighbors]), axis = 0)
 
-        self.p += self.c * (self.degree * self.y - yjsum)
+        self.p += 2 * self.c * (self.degree * self.y - yjsum)
 
         # print(self.p)
 
