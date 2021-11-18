@@ -93,7 +93,7 @@ class agent:
         # append message to nodeid's list of packets
         # ts = time.time()
         remote_id = xbee_message.remote_device.get_node_id()
-        print('got message from:', remote_id)
+        # print('got message from:', remote_id)
         # print(self.flag_received)
         self.neighbor_packet_arr[remote_id].append(xbee_message.data)
         # check if node ID messge list is len full 
@@ -102,6 +102,7 @@ class agent:
             self.neighbors[remote_id] = recombine_packets(self.neighbor_packet_arr[remote_id])
             self.neighbor_packet_arr[remote_id] = []
             self.flag_received[remote_id] = 1
+            print('got complete message from:', remote_id)
             
         
         # te = time.time()
@@ -128,38 +129,42 @@ class agent:
         
         # TODO: need some sort of synchronization here
 
-        # time.sleep(1)
+        # time.sleep(2)
         # if not successful:
         if not_all_ones(self.flag_received, self.degree):
             # TODO: decide on behavior when no data received when no data received
+            print(self.flag_received)
             print('Did not step')
+            print('*' * 500)
             return
         else:
-            print(self.flag_received)
             for n in self.flag_received:
                 self.flag_received[n] = 0
             print('Comm. time is:', te-ts)
 
             self.avg_time = (self.avg_time * self.step_num + te-ts)/(self.step_num + 1)
             print('Avg time is:', self.avg_time)
-            print('Stepping in', self.device.get_node_id(), 'step', self.step_num)
-        
+
+        print('Mine: ', self.y)
+        print(self.neighbors)
+        print('Stepping in', self.device.get_node_id(), 'step', self.step_num)
         # print([self.neighbors[n] for n in self.neighbors])
         yjsum = np.sum(np.array([self.neighbors[n] for n in self.neighbors]), axis = 0)
 
-        self.p += self.c * (self.degree * self.y - yjsum)
+        self.p += 2 * self.c * (self.degree * self.y - yjsum)
 
         rhs = self.c * (self.degree * self.y + yjsum) - self.p - self.cost.b
         self.y = self.Jinv @ rhs
 
-        # reset the neighbor packets to nothing after done updating
-        for n in self.nodes:
-            self.neighbor_packet_arr[n] = []
-            self.neighbors = {}
+        # reset the neighbor packets to empty after done updating
+        # for n in self.nodes:
+        #     self.neighbor_packet_arr[n.get_node_id()] = []
+        self.neighbors = {}
 
         # # recorder
         self.all_p.append(self.p)
         self.all_y.append(self.y)
         self.step_num += 1
-
-        
+        print(' ')
+        print(' ')
+        time.sleep(2)

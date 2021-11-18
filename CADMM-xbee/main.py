@@ -26,6 +26,7 @@ def main():
     
     # print(node.all_y)
     pickle.dump(node.all_y,open(params['Meta']['save_file'],"wb"))
+    pickle.dump(node.all_p,open(params['Meta']['save_dual_file'],"wb"))
     pickle.dump([node.cost.A, node.cost.b],open(params['Meta']['save_file_cost'],"wb"))
 
 if __name__ == '__main__':

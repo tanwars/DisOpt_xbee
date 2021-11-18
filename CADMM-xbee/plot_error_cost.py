@@ -15,6 +15,8 @@ all_p2 = pickle.load( open( "node2.p", "rb" ) )
 total_A = Ab0[0] + Ab1[0] + Ab2[0]
 total_b = Ab0[1] + Ab1[1] + Ab2[1]
 
+# print(total_A)
+
 central_p = -0.5 * (np.linalg.inv(total_A) @ total_b)
 
 ## cost computation
@@ -48,6 +50,7 @@ plt.plot(
     )
 
 plt.legend(['error0', 'error1', 'error2'])
+plt.grid()
 
 plt.figure(2)
 plt.plot(
@@ -57,6 +60,7 @@ plt.plot(
     )
 
 plt.legend(['cost0', 'cost1', 'cost2'])
+plt.grid()
 
 plt.show()
 
