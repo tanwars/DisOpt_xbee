@@ -1,7 +1,8 @@
 import numpy as np
 from cost import cost
 from utils import get_random_A_b, cb_network_modified, convert_to_packets, \
-    recombine_packets, get_num_packets, not_all_ones, get_A_b_from_file
+    recombine_packets, get_num_packets, not_all_ones, get_A_b_from_file, \
+        on_same_step, on_low_step
 
 from digi.xbee.devices import XBeeDevice, DigiMeshDevice, DiscoveryOptions, \
     NetworkDiscoveryStatus, NeighborDiscoveryMode, NetworkEventReason, \
@@ -76,6 +77,7 @@ class agent:
 
         self.neighbor_packet_arr = {}
         self.neighbors = {}
+        self.neighbors_step_num = {}
         for n in self.nodes:
             self.neighbor_packet_arr[n.get_node_id()] = []
             # self.neighbors[n.get_node_id()] = np.array(params['CADMM']['init_y'], dtype=float)
@@ -84,7 +86,8 @@ class agent:
         self.flag_received = {}
 
     def send_state(self):
-        packets = convert_to_packets(self.y, 72)
+        pack_data = np.concatenate((self.y , np.array([self.step_num])))
+        packets = convert_to_packets(pack_data, 72)
         for node in self.nodes:
             for i in range(len(packets)):
                 self.device.send_data(node, packets[i])
@@ -99,7 +102,10 @@ class agent:
         # check if node ID messge list is len full 
         # if it is full: evaluate it, print reception and empty it
         if (len(self.neighbor_packet_arr[remote_id]) == self.num_packets):
-            self.neighbors[remote_id] = recombine_packets(self.neighbor_packet_arr[remote_id])
+            recomb_pack_data = np.split(recombine_packets(self.neighbor_packet_arr[remote_id]), 
+                                            [self.y.size])
+            self.neighbors[remote_id] = recomb_pack_data[0]
+            self.neighbors_step_num[remote_id] = int(recomb_pack_data[1][0])
             self.neighbor_packet_arr[remote_id] = []
             self.flag_received[remote_id] = 1
             print('got complete message from:', remote_id)
@@ -138,6 +144,32 @@ class agent:
             print('*' * 500)
             return
         else:
+
+            # while on_same_step(self.neighbors_step_num, self.step_num) != True:
+            #     self.send_state()
+            #     print("someone is not on the same step")
+            #     print("I am at step:", self.step_num)
+            #     print(self.neighbors_step_num)
+            #     print(' ')
+            #     print(' ')
+            #     if on_low_step(self.neighbors_step_num, self.step_num):
+            #         break
+                # time.sleep(2)
+            print("I am at step:", self.step_num)
+            print(self.neighbors_step_num)
+            if on_same_step(self.neighbors_step_num, self.step_num) != True:
+                self.send_state()
+                print("someone is not on the same step")
+                print("I am at step:", self.step_num)
+                print(self.neighbors_step_num)
+                print(' ')
+                print(' ')
+                if on_low_step(self.neighbors_step_num, self.step_num) != True:
+                    print('not culprit')
+                    print(' ')
+                    print(' ')
+                    return
+
             for n in self.flag_received:
                 self.flag_received[n] = 0
             print('Comm. time is:', te-ts)
@@ -160,6 +192,7 @@ class agent:
         # for n in self.nodes:
         #     self.neighbor_packet_arr[n.get_node_id()] = []
         self.neighbors = {}
+        self.neighbors_step_num = {}
 
         # # recorder
         self.all_p.append(self.p)
@@ -167,4 +200,4 @@ class agent:
         self.step_num += 1
         print(' ')
         print(' ')
-        time.sleep(2)
+        # time.sleep(2)

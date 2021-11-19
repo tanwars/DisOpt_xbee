@@ -76,3 +76,11 @@ def not_all_ones(flags, degree):
 def set_all_zeros(flags):
     for n in flags:
         flags[n] = 0
+
+def on_same_step(step_nums, s):
+    arr = [step_nums[i] == s for i in step_nums]
+    return all(i == True for i in arr)
+
+def on_low_step(step_nums, s):
+    arr = [step_nums[i] >= s for i in step_nums]
+    return all(i == True for i in arr)
