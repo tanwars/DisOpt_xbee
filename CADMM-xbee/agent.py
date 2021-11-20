@@ -9,10 +9,14 @@ from digi.xbee.devices import XBeeDevice, DigiMeshDevice, DiscoveryOptions, \
     NetworkEventType
 import time
 
+from threading import Thread, Lock
+
 class agent:
 
     def __init__(self, params):
         
+        self.mutex = Lock()
+
         self.state_size = params['Xbee']['state_size']
         self.num_packets = get_num_packets(self.state_size)
 
@@ -75,15 +79,19 @@ class agent:
             time.sleep(0.5)
         self.nodes = xnet.get_devices()
 
+        self.degree = len(self.nodes)
+        self.flag_received = {}
+
         self.neighbor_packet_arr = {}
         self.neighbors = {}
         self.neighbors_step_num = {}
+
+        self.neighbor_buffer = {}
+
         for n in self.nodes:
             self.neighbor_packet_arr[n.get_node_id()] = []
+            self.neighbor_buffer[n.get_node_id()] = {}
             # self.neighbors[n.get_node_id()] = np.array(params['CADMM']['init_y'], dtype=float)
-        
-        self.degree = len(self.nodes)
-        self.flag_received = {}
 
     def send_state(self):
         pack_data = np.concatenate((self.y , np.array([self.step_num])))
@@ -93,23 +101,30 @@ class agent:
                 self.device.send_data(node, packets[i])
 
     def data_receive_callback(self, xbee_message):
+        self.mutex.acquire()
+        try:
         # append message to nodeid's list of packets
         # ts = time.time()
-        remote_id = xbee_message.remote_device.get_node_id()
-        # print('got message from:', remote_id)
-        # print(self.flag_received)
-        self.neighbor_packet_arr[remote_id].append(xbee_message.data)
-        # check if node ID messge list is len full 
-        # if it is full: evaluate it, print reception and empty it
-        if (len(self.neighbor_packet_arr[remote_id]) == self.num_packets):
-            recomb_pack_data = np.split(recombine_packets(self.neighbor_packet_arr[remote_id]), 
-                                            [self.y.size])
-            self.neighbors[remote_id] = recomb_pack_data[0]
-            self.neighbors_step_num[remote_id] = int(recomb_pack_data[1][0])
-            self.neighbor_packet_arr[remote_id] = []
-            self.flag_received[remote_id] = 1
-            print('got complete message from:', remote_id)
-            
+            remote_id = xbee_message.remote_device.get_node_id()
+            # print('got message from:', remote_id)
+            # print(self.flag_received)
+            self.neighbor_packet_arr[remote_id].append(xbee_message.data)
+            # check if node ID messge list is len full 
+            # if it is full: evaluate it, print reception and empty it
+            if (len(self.neighbor_packet_arr[remote_id]) == self.num_packets):
+                recomb_pack_data = np.split(recombine_packets(self.neighbor_packet_arr[remote_id]), 
+                                                [self.y.size])
+                self.neighbors[remote_id] = recomb_pack_data[0]
+                self.neighbors_step_num[remote_id] = int(recomb_pack_data[1][0])
+                
+                self.neighbor_buffer[remote_id][int(recomb_pack_data[1][0])] = recomb_pack_data[0]
+                
+                self.neighbor_packet_arr[remote_id] = []
+                self.flag_received[remote_id] = 1
+
+                # print('got complete message from:', remote_id)
+        finally:
+            self.mutex.release()    
         
         # te = time.time()
         # print('time to entire reception:', te-ts)
@@ -139,9 +154,9 @@ class agent:
         # if not successful:
         if not_all_ones(self.flag_received, self.degree):
             # TODO: decide on behavior when no data received when no data received
-            print(self.flag_received)
-            print('Did not step')
-            print('*' * 500)
+            # print(self.flag_received)
+            # print('Did not step')
+            # print('*' * 500)
             return
         else:
 
@@ -155,49 +170,82 @@ class agent:
             #     if on_low_step(self.neighbors_step_num, self.step_num):
             #         break
                 # time.sleep(2)
-            print("I am at step:", self.step_num)
-            print(self.neighbors_step_num)
             if on_same_step(self.neighbors_step_num, self.step_num) != True:
+                # print("I am at step:", self.step_num)
+                # print(self.neighbors_step_num)
                 self.send_state()
-                print("someone is not on the same step")
-                print("I am at step:", self.step_num)
-                print(self.neighbors_step_num)
-                print(' ')
-                print(' ')
+                # print("someone is not on the same step")
+                # print("I am at step:", self.step_num)
+                # print(self.neighbors_step_num)
+                # print(' ')
+                # print(' ')
                 if on_low_step(self.neighbors_step_num, self.step_num) != True:
-                    print('not culprit')
-                    print(' ')
-                    print(' ')
+                    # print('not culprit')
+                    # print(' ')
+                    # print(' ')
                     return
+                else:
+                    ## get self neighbors on the same step num
+                    # print("someone is not on the same step")
+                    # print("I am at step:", self.step_num)
+                    # print(self.neighbors_step_num)
+                    # print(self.neighbor_buffer)
+                    for n in self.neighbor_buffer:
+                         self.neighbors[n] = self.neighbor_buffer[n][self.step_num]
 
             for n in self.flag_received:
                 self.flag_received[n] = 0
-            print('Comm. time is:', te-ts)
+            # print('Comm. time is:', te-ts)
 
             self.avg_time = (self.avg_time * self.step_num + te-ts)/(self.step_num + 1)
-            print('Avg time is:', self.avg_time)
+            # print('Avg time is:', self.avg_time)
 
         print('Mine: ', self.y)
         print(self.neighbors)
         print('Stepping in', self.device.get_node_id(), 'step', self.step_num)
         # print([self.neighbors[n] for n in self.neighbors])
-        yjsum = np.sum(np.array([self.neighbors[n] for n in self.neighbors]), axis = 0)
+        self.mutex.acquire()
 
-        self.p += 2 * self.c * (self.degree * self.y - yjsum)
+        try:
+            yjsum = np.sum(np.array([self.neighbors[n] for n in self.neighbors]), axis = 0)
 
-        rhs = self.c * (self.degree * self.y + yjsum) - self.p - self.cost.b
-        self.y = self.Jinv @ rhs
+            self.p += 2 * self.c * (self.degree * self.y - yjsum)
 
+            rhs = self.c * (self.degree * self.y + yjsum) - self.p - self.cost.b
+            self.y = self.Jinv @ rhs
+            
+            # # recorder
+            self.all_p.append(self.p)
+            self.all_y.append(self.y)
+            self.step_num += 1
+            print(' ')
+            print(' ')
+        finally:
+            self.mutex.release()
+        
         # reset the neighbor packets to empty after done updating
         # for n in self.nodes:
         #     self.neighbor_packet_arr[n.get_node_id()] = []
         self.neighbors = {}
         self.neighbors_step_num = {}
 
-        # # recorder
-        self.all_p.append(self.p)
-        self.all_y.append(self.y)
-        self.step_num += 1
-        print(' ')
-        print(' ')
+        for n in self.neighbor_buffer:
+            if len(self.neighbor_buffer[n]) > 3:
+                (self.neighbor_buffer[n]).clear()
+
+        # # # recorder
+        # self.all_p.append(self.p)
+        # self.all_y.append(self.y)
+        # self.step_num += 1
+        # print(' ')
+        # print(' ')
         # time.sleep(2)
+
+        # Mine:  [-1.74701238 
+        #         -4.81754261 
+        #         -1.07566263 
+        #         -1.53520747 
+        #         -5.0476321  
+        #         -4.39806409
+        #         -3.38655653 
+        #         -3.20199513]
