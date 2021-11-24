@@ -8,6 +8,7 @@ Ab2 = pickle.load( open( "node_cost2.p", "rb" ) )
 all_p0 = pickle.load( open( "node0.p", "rb" ) )
 all_p1 = pickle.load( open( "node1.p", "rb" ) )
 all_p2 = pickle.load( open( "node2.p", "rb" ) )
+total_time = pickle.load( open( "total_time.p", "rb" ) )
 
 ## central optima
 total_A = Ab0[0] + Ab1[0] + Ab2[0]
@@ -36,9 +37,17 @@ err2 = np.linalg.norm(np.array(all_p2) - central_p, axis = 1 )
 
 ## plotting
 lens = [len(all_p0), len(all_p1), len(all_p2)]
-iteration = [i for i in range(min(lens))]
+iteration = [total_time[i] for i in range(min(lens))]
 
+steps_in_second = []
+for i in range(1,len(iteration)):
+    steps_in_second.append(iteration[i] - iteration[i-1])
+
+print('average step time is: ', np.mean(steps_in_second))
+print('max step time is: ', np.max(steps_in_second))
 print(lens)
+
+# iteration = [i for i in range(min(lens))]
 
 plt.figure(1)
 plt.plot(
@@ -48,6 +57,8 @@ plt.plot(
     )
 
 plt.legend(['error0', 'error1', 'error2'])
+plt.xlabel('time (in s)')
+
 plt.grid()
 
 plt.figure(2)

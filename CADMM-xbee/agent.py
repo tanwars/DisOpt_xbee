@@ -107,7 +107,7 @@ class agent:
         # ts = time.time()
             remote_id = xbee_message.remote_device.get_node_id()
             # print('got message from:', remote_id)
-            # print(self.flag_received)
+            # print('flag:', self.flag_received)
             self.neighbor_packet_arr[remote_id].append(xbee_message.data)
             # check if node ID messge list is len full 
             # if it is full: evaluate it, print reception and empty it
@@ -122,7 +122,8 @@ class agent:
                 self.neighbor_packet_arr[remote_id] = []
                 self.flag_received[remote_id] = 1
 
-                # print('got complete message from:', remote_id)
+                print('got complete message from:', remote_id)
+                # print('flag:', self.flag_received)
         finally:
             self.mutex.release()    
         
@@ -171,25 +172,26 @@ class agent:
             #         break
                 # time.sleep(2)
             if on_same_step(self.neighbors_step_num, self.step_num) != True:
-                # print("I am at step:", self.step_num)
-                # print(self.neighbors_step_num)
+                print("I am at step:", self.step_num)
+                print(self.neighbors_step_num)
                 self.send_state()
                 # print("someone is not on the same step")
                 # print("I am at step:", self.step_num)
                 # print(self.neighbors_step_num)
-                # print(' ')
-                # print(' ')
+                print(' ')
+                print(' ')
                 if on_low_step(self.neighbors_step_num, self.step_num) != True:
-                    # print('not culprit')
-                    # print(' ')
-                    # print(' ')
+                    print('not culprit')
+                    print(self.neighbor_buffer)
+                    print(' ')
+                    print(' ')
                     return
                 else:
                     ## get self neighbors on the same step num
-                    # print("someone is not on the same step")
-                    # print("I am at step:", self.step_num)
-                    # print(self.neighbors_step_num)
-                    # print(self.neighbor_buffer)
+                    print("someone is not on the same step")
+                    print("I am at step:", self.step_num)
+                    print(self.neighbors_step_num)
+                    print(self.neighbor_buffer)
                     for n in self.neighbor_buffer:
                          self.neighbors[n] = self.neighbor_buffer[n][self.step_num]
 
@@ -237,8 +239,8 @@ class agent:
         # self.all_p.append(self.p)
         # self.all_y.append(self.y)
         # self.step_num += 1
-        # print(' ')
-        # print(' ')
+        print(' ')
+        print(' ')
         # time.sleep(2)
 
         # Mine:  [-1.74701238 

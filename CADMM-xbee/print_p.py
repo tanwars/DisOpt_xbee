@@ -11,7 +11,7 @@ all_p0 = pickle.load( open( "node0_p.p", "rb" ) )
 all_p1 = pickle.load( open( "node1_p.p", "rb" ) )
 all_p2 = pickle.load( open( "node2_p.p", "rb" ) )
 
-# print(all_p0[-1] + all_p1[-1] + all_p2[-1])
+print(all_p0[-1] + all_p1[-1] + all_p2[-1])
 print(all_p0[-1])
 print(all_p1[-1])
 print(all_p2[-1])
